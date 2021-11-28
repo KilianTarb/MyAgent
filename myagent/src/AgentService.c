@@ -8,8 +8,8 @@
 int start_service() {
     int socket_fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (socket_fd == -1) {
-        print_error(SOCKET_INIT_FAILED);
-        return socket_fd;
+        perror("socket");
+        exit(EXIT_FAILURE);
     }
 
     struct sockaddr_un name;
@@ -18,10 +18,24 @@ int start_service() {
     int ran_num = random();
     char path[108];
     strcpy(path, UN_SOCKET_BASENAME);
-    sprintf(path, "%d", ran_num);
+
+    char s_num[sizeof(UN_SOCKET_BASENAME)];
+    sprintf(s_num, "%d", ran_num);
+    strcat(path, s_num);
+    strcat(path, ".sock");
+
+    // copy build path to structure
     strcpy(name.sun_path, path);
 
-    bind(socket_fd, (const struct sockaddr *)&name, sizeof name);
+    printf("Socket file descriptor: %d\n", socket_fd);
+    printf("New AF_UNIX socket created at: %s\n", path);
+    unlink(name.sun_path);
+    int bind_err = bind(socket_fd, (const struct sockaddr *)&name, sizeof(struct sockaddr_un));
+    if (bind_err == -1) {
+        perror("bind");
+        exit(EXIT_FAILURE);
+    }
+
     return socket_fd;
 }
 
@@ -31,9 +45,43 @@ int start_service() {
  * @param socket_fd The receving socket file descriptor.
  * @return int 
  */
-int accect_connections(int socket_fd) {
-    //struct sockaddr addr;
-    //accept(socket_fd, addr, sizeof addr); 
+int accept_connections(int socket_fd) {
+    int listen_err = listen(socket_fd, 20);
+    if (listen_err == -1) {
+        perror("listen");
+        exit(EXIT_FAILURE);
+    }
+
+    char buffer[12];
+    int new_connection;
+
+    // Connection handling loop
+    for (;;) {
+        int new_connection = accept(socket_fd, NULL, NULL);
+        if (new_connection == -1) {
+            perror("accept");
+            exit(EXIT_FAILURE);
+        }
+
+        printf("New connection with file descriptor: %d\n", new_connection);
+
+        // Reading loop
+        int result = 0;
+        for (;;) {
+            int read_data = read(new_connection, buffer, 12);
+            if (read_data == -1) {
+                perror("read");
+                exit(EXIT_FAILURE);
+            }
+            
+            printf("> %s\n", buffer);
+            close(new_connection);
+            break;            
+        } 
+
+        break;
+    }
+
     return 0;
 }
 

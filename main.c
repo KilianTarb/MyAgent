@@ -3,9 +3,7 @@
 int main(int argc, char const *argv[])
 {
     int fd = start_service();
-    if (fd == -1)
-        return 1;
-
+    int err = accept_connections(fd);
     close(fd);
     return 0;
 }
